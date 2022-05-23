@@ -1,6 +1,7 @@
 const std = @import("std");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
+const Snake = @import("game.zig");
 
 pub fn main() anyerror!void {
     std.log.info("Snake game.", .{});
@@ -36,6 +37,8 @@ pub fn main() anyerror!void {
         .height = 50,
     });
     renderer.present();
+    game.Pla
+
 
     mainLoop: while (true) {
         while (SDL.pollEvent()) |ev| {
@@ -62,6 +65,7 @@ pub fn main() anyerror!void {
         try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
     }
 }
+
 
 test "basic test" {
     try std.testing.expectEqual(10, 3 + 7);
