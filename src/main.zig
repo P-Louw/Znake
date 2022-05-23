@@ -4,8 +4,7 @@ const SDL = @import("sdl2-zig");
 const Snake = @import("game.zig");
 
 pub fn main() anyerror!void {
-    std.log.info("Snake game.", .{});
-
+    const allocator = std.heap.page_allocator;
     try SDL.init(.{
         .video = true,
         .events = true,
@@ -26,19 +25,15 @@ pub fn main() anyerror!void {
     var renderer = try SDL.createRenderer(window, null, .{ .accelerated = true });
     defer renderer.destroy();
 
-    try renderer.setColorRGB(0, 0, 0);
-    try renderer.clear();
-
-    try renderer.setColor(SDL.Color.red);
-    try renderer.drawRect(SDL.Rectangle{
-        .x = 270,
-        .y = 215,
-        .width = 100,
-        .height = 50,
-    });
-    renderer.present();
-    game.Pla
-
+    //try renderer.setColor(SDL.Color.red);
+    //try renderer.drawRect(SDL.Rectangle{
+    //    .x = 270,
+    //    .y = 215,
+    //    .width = 100,
+    //    .height = 50,
+    //});
+    var game = try Snake.init(allocator);
+    defer game.deinit();
 
     mainLoop: while (true) {
         while (SDL.pollEvent()) |ev| {
@@ -49,11 +44,7 @@ pub fn main() anyerror!void {
                 .key_up => |key| {
                     switch (key.scancode) {
                         .escape => break :mainLoop,
-                        .up, .down, .left, .right => {
-                            std.log.info("Movement key was pressed: {}", .{key});
-                        },
-                        .left_control => std.log.info("Left ctrl was pressed", .{}),
-                        else => std.log.info("Unhandeld keypress event.", .{}),
+                        else => Snake.handleKeyBoard(key.scancode),
                     }
                 },
                 else => {},
@@ -61,12 +52,11 @@ pub fn main() anyerror!void {
         }
         try renderer.setColorRGB(0, 0, 0);
         try renderer.clear();
+        try game.render(&renderer);
+        renderer.present();
+        //try renderer.setColorRGB(0, 0, 0);
+        try renderer.clear();
 
-        try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
+        //try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
     }
-}
-
-
-test "basic test" {
-    try std.testing.expectEqual(10, 3 + 7);
 }

@@ -4,61 +4,80 @@ const linkedlist = @import("linked_list");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 
-const Self = @This();
+const SnakeGame = @This();
 
+// TODO: This could be a generic entity?
 const Block = struct {
     x: u64,
     y: u64,
 };
 
+// TODO: Is this needed? This should be known or derived implicitly.
+const Moves = enum(SDL.key.scancode) {
+    up,
+    down,
+    left,
+    right,
+};
+
 allocator: std.mem.Allocator,
-bodyLength: u32 = 5,
+bodyLength: usize = 5,
 body: std.ArrayList(*Block),
 pickups: std.ArrayList(*Block),
-
 score: u64,
 
-pub fn init(ally: std.mem.Allocator) !*Self {
-    Self.allocator = ally;
-    Self.body = std.ArrayList(*Block).init(ally);
-    Self.pickups = std.ArrayList(*Block).init(ally);
-    // TODO: Random placement pickups.
+pub fn init(ally: std.mem.Allocator) !SnakeGame {
+    var self = SnakeGame{
+        .allocator = ally,
+        .bodyLength = 3,
+        .body = std.ArrayList(*Block).init(ally),
+        .pickups = std.ArrayList(*Block).init(ally),
+        .score = 0,
+    };
     // TODO: Remove i statement.
-    var i = 0;
-    while(i <= bodyLength) : (i+=1) {
-        const block = try allocator.create(bodyBlock);
-        try body.append(block);
+    var i: usize = 0;
+    while (i < self.bodyLength) : (i += 1) {
+        const block = try self.allocator.create(Block);
+        try self.body.append(block);
     }
+    // TODO: add pickup.
+    return self;
 }
 
-pub fn deInit() !void {
-    Self.body.deinit();
-    Self.pickups.deinit();
+pub fn deinit(self: *SnakeGame) void {
+    self.body.deinit();
+    self.pickups.deinit();
 }
 
 /// Updates a given frame in game, delta is time elapsed sine previous update.
 pub fn update(delta: u32) !void {
+    try movePlayer();
     std.log.info("Elapsed delta: {d}\n", .{delta});
 }
 
 /// Draw game.
-pub fn render(renderer: * SDL.Renderer) !void {
-    std.log.info("Used render of game:\n", .{});
+pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
+    //std.log.info("Used render of game:\n", .{});
+    try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
+    //try renderer.setColor(SDL.Color.red);
+    std.log.info("body length: {d}\n", .{self.bodyLength});
+    //try renderer.setColor(SDL.Color.red);
+    try renderer.drawRect(SDL.Rectangle{
+        .x = 270,
+        .y = 215,
+        .width = 100,
+        .height = 50,
+    });
 }
 
-const Player = struct {
-    length: u32,
-    color: []const u8,
+fn movePlayer() !void {}
 
-    pub fn init() void {
-        _ = linkedlist(bodyBlock);
+pub fn handleKeyBoard(scanCode: SDL.Scancode) void {
+    switch (scanCode) {
+        .up, .down, .left, .right => {
+            std.log.info("Movement key was pressed: {}", .{scanCode});
+        },
+        .left_control => std.log.info("Left ctrl was pressed", .{}),
+        else => {},
     }
-
-    pub fn deInit() void {
-    }
-
-    pub fn addBlock(self: *Player) !bool {
-        self.color = "Red";
-        return true;
-    }
-};
+}
