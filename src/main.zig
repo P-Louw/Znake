@@ -3,6 +3,9 @@ const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 const Snake = @import("game.zig");
 
+var widht: usize = 640;
+var height: usize = 480; 
+
 pub fn main() anyerror!void {
     const allocator = std.heap.page_allocator;
     try SDL.init(.{
@@ -16,8 +19,8 @@ pub fn main() anyerror!void {
         "Snake - zig",
         .{ .centered = {} },
         .{ .centered = {} },
-        640,
-        480,
+        width,
+        height,
         .{ .shown = true },
     );
     defer window.destroy();
@@ -25,13 +28,6 @@ pub fn main() anyerror!void {
     var renderer = try SDL.createRenderer(window, null, .{ .accelerated = true });
     defer renderer.destroy();
 
-    //try renderer.setColor(SDL.Color.red);
-    //try renderer.drawRect(SDL.Rectangle{
-    //    .x = 270,
-    //    .y = 215,
-    //    .width = 100,
-    //    .height = 50,
-    //});
     var game = try Snake.init(allocator);
     defer game.deinit();
 
@@ -44,13 +40,13 @@ pub fn main() anyerror!void {
                 .key_up => |key| {
                     switch (key.scancode) {
                         .escape => break :mainLoop,
-                        else => Snake.handleKeyBoard(key.scancode),
+                        else => game.handleKeyBoard(key.scancode),
                     }
                 },
                 else => {},
             }
         }
-        try renderer.setColorRGB(0, 0, 0);
+        try renderer.setColorRGB(22, 0, 59);
         try renderer.clear();
         try game.render(&renderer);
         renderer.present();

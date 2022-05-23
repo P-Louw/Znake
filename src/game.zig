@@ -22,9 +22,10 @@ const Moves = enum(SDL.key.scancode) {
 
 allocator: std.mem.Allocator,
 bodyLength: usize = 5,
+score: u64 = 0,
 body: std.ArrayList(*Block),
 pickups: std.ArrayList(*Block),
-score: u64,
+direction: Moves = Moves.left,
 
 pub fn init(ally: std.mem.Allocator) !SnakeGame {
     var self = SnakeGame{
@@ -36,8 +37,18 @@ pub fn init(ally: std.mem.Allocator) !SnakeGame {
     };
     // TODO: Remove i statement.
     var i: usize = 0;
-    while (i < self.bodyLength) : (i += 1) {
-        const block = try self.allocator.create(Block);
+    var x: i32 = 0;
+    var y: i32 = 0;
+    while (i < self.bodyLength) : ({
+        i += 1;
+        x += 50;
+        y += 0;
+    }) {
+        var block = try self.allocator.create(Block);
+        block.* = Block{
+            .x = x,
+            .y = y,
+        };
         try self.body.append(block);
     }
     // TODO: add pickup.
@@ -57,26 +68,28 @@ pub fn update(delta: u32) !void {
 
 /// Draw game.
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
-    //std.log.info("Used render of game:\n", .{});
     try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
-    //try renderer.setColor(SDL.Color.red);
     std.log.info("body length: {d}\n", .{self.bodyLength});
-    //try renderer.setColor(SDL.Color.red);
-    try renderer.drawRect(SDL.Rectangle{
-        .x = 270,
-        .y = 215,
-        .width = 100,
+
+    try renderer.fillRect(SDL.Rectangle{
+        .x = 0,
+        .y = 0,
+        .width = 50,
         .height = 50,
     });
+    //try renderer.drawRect();
 }
 
-fn movePlayer() !void {}
+fn movePlayer(self: *SnakeGame) !void {
+    
+}
 
-pub fn handleKeyBoard(scanCode: SDL.Scancode) void {
+pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
     switch (scanCode) {
-        .up, .down, .left, .right => {
-            std.log.info("Movement key was pressed: {}", .{scanCode});
-        },
+        .up => Move.up,
+        .down => Move.down,
+        .left => Move.right, 
+        .right => Move.right,
         .left_control => std.log.info("Left ctrl was pressed", .{}),
         else => {},
     }
