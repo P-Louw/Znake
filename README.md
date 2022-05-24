@@ -1,4 +1,7 @@
 ## Snake - zig
 
 
-Atempt at writing snake in zig.
+Attempt at writing snake in zig.
+
+
+

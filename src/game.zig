@@ -64,7 +64,7 @@ pub fn deinit(self: *SnakeGame) void {
 
 /// Updates a given frame in game, delta is time elapsed sine previous update.
 pub fn update(self: *SnakeGame, delta: u64) !void {
-    try self.movePlayer();
+    //try self.movePlayer();
     std.log.info("Elapsed delta: {d}\n", .{delta});
     var i = self.body.items.len - 1;
     while (i > 0) : (i -= 1) {
@@ -116,11 +116,19 @@ fn movePlayer(self: *SnakeGame, move: Moves) !void {
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
     std.log.info("Entity part size: {any}", .{self.partSize});
     switch (scanCode) {
-        .up => try self.movePlayer(Moves.up),
-        .down => try self.movePlayer(Moves.down),
-        .left => try self.movePlayer(Moves.left),
-        .right => try self.movePlayer(Moves.right),
-        .left_control => std.log.info("Left ctrl was pressed", .{}),
+        .up => if (self.direction != Moves.down) {
+            self.direction = Moves.up;
+        },
+        .down => if (self.direction != Moves.up) {
+            self.direction = Moves.down;
+        },
+        .left => if (self.direction != Moves.right) {
+            self.direction = Moves.left;
+        },
+        .right => if (self.direction != Moves.left) {
+            self.direction = Moves.right;
+        },
+        .left_control => std.log.info("Move type size: {any}", .{(@TypeOf(Moves.up))}),
         else => {},
     }
     //switch (scanCode) {
