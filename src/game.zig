@@ -3,6 +3,9 @@ const Allocator = std.mem.Allocator;
 const linkedlist = @import("linked_list");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
+const SDLTTF = @cImport({
+    @cInclude("SDL2_ttf.h");
+});
 
 const SnakeGame = @This();
 
@@ -74,7 +77,7 @@ pub fn deinit(self: *SnakeGame) void {
 var lastTime: u64 = 0;
 /// Updates a given frame in game, delta is time elapsed sine previous update.
 pub fn update(self: *SnakeGame, delta: u64) !void {
-    if (lastTime < 60000) {
+    if (lastTime < 6000) {
         lastTime += delta;
         return;
     }
@@ -94,7 +97,12 @@ pub fn update(self: *SnakeGame, delta: u64) !void {
     if (detectCollision(self.body.items[0], self.pickup)) {
         self.onPickup();
     }
+    //for (self.body.items[1..]) |bod| {
+    //    self.detectCollision(bod);
+    //}
+
     // TODO: Border collision.
+    // max colission length: -2 from head
     // TODO: Self collision.
 }
 
@@ -148,11 +156,11 @@ fn detectCollision(blockA: *Block, blockB: *Block) bool {
     //If none of the sides from A are outside B
     return true;
 }
-
+var prng = std.rand.DefaultPrng.init(640);
+const rand = &prng.random();
 fn placePickup(self: *SnakeGame, item: *Block) void {
-    var rand = std.rand.Pcg.init(640).random();
-    item.x = rand.uintLessThan(u32, @divTrunc(self.areaX, self.tileSize)) * self.tileSize;
-    item.y = rand.uintLessThan(u32, @divTrunc(self.areaY, self.tileSize)) * self.tileSize;
+    item.x = rand.intRangeAtMost(u32, 0, self.areaX) * self.tileSize;
+    item.y = rand.intRangeAtMost(u32, 0, self.areaY) * self.tileSize; // myRand.uintLessThan(u32, @divTrunc(self.areaX, self.tileSize)) * self.tileSize;
     //item.x = 60;
     //item.y = 60;
 }

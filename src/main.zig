@@ -58,10 +58,6 @@ pub fn main() anyerror!void {
             try game.update(delta);
             try game.render(&renderer);
             renderer.present();
-            //try renderer.setColorRGB(0, 0, 0);
-            //try renderer.clear();
-
-            //try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
         }
     }
 }
