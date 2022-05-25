@@ -5,12 +5,12 @@ const Snake = @import("game.zig");
 
 var width: usize = 640;
 var height: usize = 480;
-var lastTime: u32 = undefined;
+var lastTime: u64 = undefined;
 // Considering 6 frames is the minimum.
 const minFpsTime = (1000 / 6);
 
 pub fn main() anyerror!void {
-    lastTime = SDL.getTicks();
+    lastTime = SDL.getTicks64();
     const allocator = std.heap.page_allocator;
     try SDL.init(.{
         .video = true,
@@ -33,9 +33,10 @@ pub fn main() anyerror!void {
 
     var game = try Snake.init(allocator, window.getSize());
     defer game.deinit();
+    try game.render(&renderer);
 
     mainLoop: while (true) {
-        var now = SDL.getTicks();
+        var now = SDL.getTicks64();
         while (SDL.pollEvent()) |ev| {
             switch (ev) {
                 .quit => {
@@ -51,7 +52,7 @@ pub fn main() anyerror!void {
             }
         }
         if (lastTime < now) {
-            const delta = now - lastTime;
+            const delta = (now - lastTime) / 1000;
             try renderer.setColorRGB(22, 0, 59);
             try renderer.clear();
             try game.update(delta);

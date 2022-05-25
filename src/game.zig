@@ -8,8 +8,8 @@ const SnakeGame = @This();
 
 // TODO: This could be a generic entity?
 const Block = struct {
-    x: u64,
-    y: u64,
+    x: u32,
+    y: u32,
 };
 
 // TODO: Is this needed? This should be known or derived implicitly.
@@ -21,65 +21,84 @@ const Moves = enum(usize) {
 };
 
 allocator: std.mem.Allocator,
-bodyLength: usize = 5,
-partSize: usize = 50,
-speed: u64 = 50,
+areaX: u32,
+areaY: u32,
+bodyLength: usize = 3,
+tileSize: u32 = 10,
 score: u64 = 0,
 body: std.ArrayList(*Block),
-pickups: std.ArrayList(*Block),
+pickup: *Block,
 direction: Moves = Moves.left,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
+    var firstPickup = try ally.create(Block);
+    firstPickup.* = Block{
+        .x = 0,
+        .y = 0,
+    };
     var self = SnakeGame{
+        .tileSize = 10,
+        .areaX = @intCast(u32, @divTrunc(screen.width, 10)),
+        .areaY = @intCast(u32, @divTrunc(screen.height, 10)),
         .allocator = ally,
         .bodyLength = 3,
         .body = std.ArrayList(*Block).init(ally),
-        .pickups = std.ArrayList(*Block).init(ally),
+        .pickup = firstPickup,
         .score = 0,
     };
-    // TODO: Remove i statement.
+    self.placePickup(firstPickup);
     var i: usize = 0;
-    var x: u64 = @divTrunc(@intCast(u64, screen.width), 2) - (self.bodyLength * (self.partSize / 2));
-    var y: u64 = @divTrunc(@intCast(u64, screen.height), 2) - (self.partSize / 2);
+    //var x: u64 = @divTrunc(@intCast(u64, screen.width), 2) - (self.bodyLength * (self.tileSize / 2));
+    //var y: u64 = @divTrunc(@intCast(u64, screen.height), 2) - (self.tileSize / 2);
+    var stepX: u32 = @divTrunc(self.areaX, 2);
+    var y: u32 = @divTrunc(self.areaY, 2) * self.tileSize;
     while (i < self.bodyLength) : ({
         i += 1;
-        x += 50;
-        y += 0;
+        stepX += self.tileSize;
     }) {
         var block = try self.allocator.create(Block);
         block.* = Block{
-            .x = x,
+            .x = stepX,
             .y = y,
         };
         try self.body.append(block);
     }
-    // TODO: add pickup.
     return self;
 }
 
 pub fn deinit(self: *SnakeGame) void {
     self.body.deinit();
-    self.pickups.deinit();
+    self.allocator.destroy(self.pickup);
 }
 
+var lastTime: u64 = 0;
 /// Updates a given frame in game, delta is time elapsed sine previous update.
 pub fn update(self: *SnakeGame, delta: u64) !void {
-    //try self.movePlayer();
-    std.log.info("Elapsed delta: {d}\n", .{delta});
+    if (lastTime < 60000) {
+        lastTime += delta;
+        return;
+    }
+    lastTime = 0;
     var i = self.body.items.len - 1;
     while (i > 0) : (i -= 1) {
         self.body.items[i].x = self.body.items[i - 1].x;
         self.body.items[i].y = self.body.items[i - 1].y;
     }
     switch (self.direction) {
-        .up => self.body.items[0].*.y += self.speed,
-        .down => self.body.items[0].*.y -= self.speed,
-        .left => self.body.items[0].*.x += self.speed,
-        .right => self.body.items[0].*.x -= self.speed,
+        .up => self.body.items[0].*.y -= self.tileSize,
+        .down => self.body.items[0].*.y += self.tileSize,
+        .left => self.body.items[0].*.x -= self.tileSize,
+        .right => self.body.items[0].*.x += self.tileSize,
     }
+    std.log.info("Head: {any} - P: {any}.\n", .{ self.body.items[0], self.pickup });
+    if (detectCollision(self.body.items[0], self.pickup)) {
+        self.onPickup();
+    }
+    // TODO: Border collision.
+    // TODO: Self collision.
 }
 
-/// Draw game.
+// Draw game.
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
     try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
     //std.log.info("body length: {d}\n", .{self.bodyLength});
@@ -87,34 +106,65 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
         try renderer.fillRect(SDL.Rectangle{
             .x = @intCast(c_int, bod.x),
             .y = @intCast(c_int, bod.y),
-            .width = @intCast(c_int, self.partSize),
-            .height = @intCast(c_int, self.partSize),
+            .width = @intCast(c_int, self.tileSize),
+            .height = @intCast(c_int, self.tileSize),
         });
     }
+    try renderer.setColor(SDL.Color.parse("#1C9E49") catch unreachable);
+    try renderer.fillRect(SDL.Rectangle{
+        .x = @intCast(c_int, self.pickup.x),
+        .y = @intCast(c_int, self.pickup.y),
+        // Sub 2 to hide pixel alignment:
+        .width = @intCast(c_int, self.tileSize - 2),
+        .height = @intCast(c_int, self.tileSize - 2),
+    });
     //try renderer.drawRect();
 }
+fn detectCollision(blockA: *Block, blockB: *Block) bool {
+    //Calculate the sides of rect A
+    const leftA = blockA.x;
+    const rightA = blockA.x + 10;
+    const topA = blockA.y;
+    const bottomA = blockA.y + 10;
 
-fn movePlayer(self: *SnakeGame, move: Moves) !void {
-    std.log.info("Pressed key: {any}", .{move});
-    var i = self.body.items.len - 1;
-    while (i > 0) : (i -= 1) {
-        std.log.info("Moving block {d}\nFrom {any}\n", .{ i, self.body.items[i] });
-        self.body.items[i].x = self.body.items[i - 1].x;
-        self.body.items[i].y = self.body.items[i - 1].y;
-        std.log.info("to {any}\n", .{(self.body.items[i - 1])});
+    //Calculate the sides of rect B
+    const leftB = blockB.x;
+    const rightB = blockB.x + 10;
+    const topB = blockB.y;
+    const bottomB = blockB.y + 10;
+    //If any of the sides from A are outside of B
+    if (bottomA <= topB) {
+        return false;
     }
-    std.log.info("Moving block {d}\nFrom {any}\n", .{ 0, self.body.items[0] });
-    switch (self.direction) {
-        .up => self.body.items[0].y += self.speed,
-        .down => self.body.items[0].y -= self.speed,
-        .left => self.body.items[0].x -= self.speed,
-        .right => self.body.items[0].x += self.speed,
+    if (topA >= bottomB) {
+        return false;
     }
-    std.log.info("to {any}\n", .{(self.body.items[0])});
+    if (rightA <= leftB) {
+        return false;
+    }
+    if (leftA >= rightB) {
+        return false;
+    }
+    //If none of the sides from A are outside B
+    return true;
+}
+
+fn placePickup(self: *SnakeGame, item: *Block) void {
+    var rand = std.rand.Pcg.init(640).random();
+    item.x = rand.uintLessThan(u32, @divTrunc(self.areaX, self.tileSize)) * self.tileSize;
+    item.y = rand.uintLessThan(u32, @divTrunc(self.areaY, self.tileSize)) * self.tileSize;
+    //item.x = 60;
+    //item.y = 60;
+}
+
+fn onPickup(self: *SnakeGame) void {
+    std.log.info("Pickup detected", .{});
+    self.score += 5;
+    self.placePickup(self.pickup);
 }
 
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
-    std.log.info("Entity part size: {any}", .{self.partSize});
+    //std.log.info("Entity part size: {any}", .{self.tileSize});
     switch (scanCode) {
         .up => if (self.direction != Moves.down) {
             self.direction = Moves.up;
@@ -131,12 +181,4 @@ pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
         .left_control => std.log.info("Move type size: {any}", .{(@TypeOf(Moves.up))}),
         else => {},
     }
-    //switch (scanCode) {
-    //    .up => self.direction = Moves.up,
-    //    .down => self.direction = Moves.down,
-    //    .left => self.direction = Moves.left,
-    //    .right => self.direction = Moves.right,
-    //    .left_control => std.log.info("Left ctrl was pressed", .{}),
-    //    else => {},
-    //}
 }
