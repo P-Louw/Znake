@@ -1,5 +1,5 @@
 const std = @import("std");
-const Sdk = @import("libs/zigsdl/Sdk.zig");
+const Sdk = @import("libs/SDL.zig/Sdk.zig");
 
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
@@ -26,7 +26,7 @@ pub fn build(b: *std.build.Builder) void {
     exe.setBuildMode(mode);
 
     exe.linkSystemLibrary("SDL2");
-    exe.linkSystemLibrary("SDL2_ttf");
+    //exe.linkSystemLibrary("SDL2_ttf");
     //exe.linkSystemLibrary("c");
     exe.linkSystemLibrary("SDL2_image");
 
