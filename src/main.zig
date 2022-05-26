@@ -9,8 +9,22 @@ const SDLTTF = @cImport({
 var width: usize = 640;
 var height: usize = 480;
 var lastTime: u64 = undefined;
-// Considering 6 frames is the minimum.
-const minFpsTime = (1000 / 6);
+
+// TODO: Fix pickup spawning in worm.
+// TODO: Refactor timing loop and game reference struct.
+// TODO: Add score using SDL TTF.
+// TODO: Make build file for linux and windows.
+// Considering 6 frames is the minimum for rendering updates.
+//const minFpsTime = (1000 / 6);
+// Fixed step is 60 fps for ticks
+//const fixedStep = 1000 / 60;
+
+pub fn render(game: *Snake, renderer: *SDL.Renderer) !void {
+    try renderer.setColorRGB(22, 0, 59);
+    try renderer.clear();
+    try game.render(renderer);
+    renderer.present();
+}
 
 pub fn main() anyerror!void {
     lastTime = SDL.getTicks64();
@@ -42,7 +56,7 @@ pub fn main() anyerror!void {
     try game.render(&renderer);
 
     mainLoop: while (true) {
-        var now = SDL.getTicks64();
+        var now: u64 = SDL.getTicks64();
         while (SDL.pollEvent()) |ev| {
             switch (ev) {
                 .quit => {
@@ -58,12 +72,14 @@ pub fn main() anyerror!void {
             }
         }
         if (lastTime < now) {
-            const delta = (now - lastTime) / 1000;
-            try renderer.setColorRGB(22, 0, 59);
-            try renderer.clear();
-            try game.update(delta);
-            try game.render(&renderer);
-            renderer.present();
+            const delta = (now - lastTime); // / 1000;
+            std.log.info("Delta now: {any}\n", .{delta});
+            try render(&game, &renderer);
+            if (delta > 500) {
+                lastTime = SDL.getTicks64();
+                std.log.info("Physics update", .{});
+                try game.update();
+            }
         }
     }
 }

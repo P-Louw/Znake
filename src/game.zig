@@ -9,12 +9,13 @@ const SDLTTF = @cImport({
 
 const SnakeGame = @This();
 
-// TODO: This could be a generic entity?
 const Block = struct {
-    x: u32,
-    y: u32,
+    x: i32,
+    y: i32,
 };
 
+// TODO: Fix buffered input, move is set on key press but results in false evalution when
+//       onother input is given after since changes to a entity location isn't given on input.
 // TODO: Is this needed? This should be known or derived implicitly.
 const Moves = enum(usize) {
     up = @enumToInt(SDL.Scancode.up),
@@ -24,37 +25,33 @@ const Moves = enum(usize) {
 };
 
 allocator: std.mem.Allocator,
-areaX: u32,
-areaY: u32,
+areaX: i32,
+areaY: i32,
 bodyLength: usize = 3,
-tileSize: u32 = 10,
+tileSize: i32 = 10,
 score: u64 = 0,
 body: std.ArrayList(*Block),
 pickup: *Block,
 direction: Moves = Moves.left,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
-    var firstPickup = try ally.create(Block);
-    firstPickup.* = Block{
-        .x = 0,
-        .y = 0,
-    };
     var self = SnakeGame{
-        .tileSize = 10,
-        .areaX = @intCast(u32, @divTrunc(screen.width, 10)),
-        .areaY = @intCast(u32, @divTrunc(screen.height, 10)),
+        .tileSize = 20,
+        .areaX = undefined,
+        .areaY = undefined,
         .allocator = ally,
         .bodyLength = 3,
         .body = std.ArrayList(*Block).init(ally),
-        .pickup = firstPickup,
+        .pickup = try ally.create(Block),
         .score = 0,
     };
-    self.placePickup(firstPickup);
+    self.areaX = @divTrunc(@intCast(i32, screen.width), self.tileSize);
+    self.areaY = @divTrunc(@intCast(i32, screen.height), self.tileSize);
+
+    self.placePickup();
     var i: usize = 0;
-    //var x: u64 = @divTrunc(@intCast(u64, screen.width), 2) - (self.bodyLength * (self.tileSize / 2));
-    //var y: u64 = @divTrunc(@intCast(u64, screen.height), 2) - (self.tileSize / 2);
-    var stepX: u32 = @divTrunc(self.areaX, 2);
-    var y: u32 = @divTrunc(self.areaY, 2) * self.tileSize;
+    var stepX: i32 = @divTrunc(self.areaX, 2) * self.tileSize;
+    var y: i32 = @divTrunc(self.areaY, 2) * self.tileSize;
     while (i < self.bodyLength) : ({
         i += 1;
         stepX += self.tileSize;
@@ -74,14 +71,8 @@ pub fn deinit(self: *SnakeGame) void {
     self.allocator.destroy(self.pickup);
 }
 
-var lastTime: u64 = 0;
 /// Updates a given frame in game, delta is time elapsed sine previous update.
-pub fn update(self: *SnakeGame, delta: u64) !void {
-    if (lastTime < 6000) {
-        lastTime += delta;
-        return;
-    }
-    lastTime = 0;
+pub fn update(self: *SnakeGame) !void {
     var i = self.body.items.len - 1;
     while (i > 0) : (i -= 1) {
         self.body.items[i].x = self.body.items[i - 1].x;
@@ -93,23 +84,22 @@ pub fn update(self: *SnakeGame, delta: u64) !void {
         .left => self.body.items[0].*.x -= self.tileSize,
         .right => self.body.items[0].*.x += self.tileSize,
     }
-    std.log.info("Head: {any} - P: {any}.\n", .{ self.body.items[0], self.pickup });
     if (detectCollision(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
-    //for (self.body.items[1..]) |bod| {
-    //    self.detectCollision(bod);
-    //}
-
-    // TODO: Border collision.
-    // max colission length: -2 from head
-    // TODO: Self collision.
+    if (try self.detectGameover(self.body.items[0])) {
+        SDL.quit();
+    }
+    for (self.body.items[2..]) |bod| {
+        if (detectCollision(self.body.items[0], bod)) {
+            SDL.quit();
+        }
+    }
 }
 
 // Draw game.
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
     try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
-    //std.log.info("body length: {d}\n", .{self.bodyLength});
     for (self.body.items) |bod| {
         try renderer.fillRect(SDL.Rectangle{
             .x = @intCast(c_int, bod.x),
@@ -125,14 +115,22 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
         .width = @intCast(c_int, self.tileSize),
         .height = @intCast(c_int, self.tileSize),
     });
-    //drawScore(renderer);
+}
+
+fn detectGameover(self: *SnakeGame, head: *Block) !bool {
+    if (head.x < 0 or head.x > (self.tileSize * self.areaX)) {
+        return true;
+    } else if (head.y < 0 or head.y > (self.tileSize * self.areaY)) {
+        return true;
+    }
+    return false;
 }
 
 fn detectCollision(blockA: *Block, blockB: *Block) bool {
+    // TODO: Magic numbers should be tileSize field.
     //Calculate the sides of rect A
     const rightA = blockA.x + 10;
     const bottomA = blockA.y + 10;
-
     //Calculate the sides of rect B
     const rightB = blockB.x + 10;
     const bottomB = blockB.y + 10;
@@ -152,11 +150,22 @@ fn detectCollision(blockA: *Block, blockB: *Block) bool {
     //If none of the sides from A are outside B
     return true;
 }
+
+// TODO: Fix fixed 'random' series....
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
-fn placePickup(self: SnakeGame, item: *Block) void {
-    item.x = rand.intRangeAtMost(u32, 0, self.areaX) * self.tileSize;
-    item.y = rand.intRangeAtMost(u32, 0, self.areaY) * self.tileSize;
+
+fn placePickup(self: SnakeGame) void {
+    std.log.info("changed position from: {any}\n", .{self.pickup});
+    self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
+    self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+    for (self.body.items) |b| {
+        if (detectCollision(self.pickup, b)) {
+            self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
+            self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+            break;
+        }
+    }
 }
 
 fn onPickup(self: *SnakeGame) !void {
@@ -168,7 +177,7 @@ fn onPickup(self: *SnakeGame) !void {
         .y = self.body.items[self.body.items.len - 1].y,
     };
     try self.body.append(block);
-    self.placePickup(self.pickup);
+    self.placePickup();
 }
 
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
