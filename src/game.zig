@@ -4,7 +4,7 @@ const linkedlist = @import("linked_list");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 const SDLTTF = @cImport({
-    @cInclude("SDL2_ttf.h");
+    @cInclude("SDL_ttf.h");
 });
 
 const SnakeGame = @This();
@@ -95,7 +95,7 @@ pub fn update(self: *SnakeGame, delta: u64) !void {
     }
     std.log.info("Head: {any} - P: {any}.\n", .{ self.body.items[0], self.pickup });
     if (detectCollision(self.body.items[0], self.pickup)) {
-        self.onPickup();
+        try self.onPickup();
     }
     //for (self.body.items[1..]) |bod| {
     //    self.detectCollision(bod);
@@ -122,35 +122,31 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
     try renderer.fillRect(SDL.Rectangle{
         .x = @intCast(c_int, self.pickup.x),
         .y = @intCast(c_int, self.pickup.y),
-        // Sub 2 to hide pixel alignment:
-        .width = @intCast(c_int, self.tileSize - 2),
-        .height = @intCast(c_int, self.tileSize - 2),
+        .width = @intCast(c_int, self.tileSize),
+        .height = @intCast(c_int, self.tileSize),
     });
-    //try renderer.drawRect();
+    //drawScore(renderer);
 }
+
 fn detectCollision(blockA: *Block, blockB: *Block) bool {
     //Calculate the sides of rect A
-    const leftA = blockA.x;
     const rightA = blockA.x + 10;
-    const topA = blockA.y;
     const bottomA = blockA.y + 10;
 
     //Calculate the sides of rect B
-    const leftB = blockB.x;
     const rightB = blockB.x + 10;
-    const topB = blockB.y;
     const bottomB = blockB.y + 10;
     //If any of the sides from A are outside of B
-    if (bottomA <= topB) {
+    if (bottomA <= blockB.y) {
         return false;
     }
-    if (topA >= bottomB) {
+    if (blockA.y >= bottomB) {
         return false;
     }
-    if (rightA <= leftB) {
+    if (rightA <= blockB.x) {
         return false;
     }
-    if (leftA >= rightB) {
+    if (blockA.x >= rightB) {
         return false;
     }
     //If none of the sides from A are outside B
@@ -158,16 +154,20 @@ fn detectCollision(blockA: *Block, blockB: *Block) bool {
 }
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
-fn placePickup(self: *SnakeGame, item: *Block) void {
+fn placePickup(self: SnakeGame, item: *Block) void {
     item.x = rand.intRangeAtMost(u32, 0, self.areaX) * self.tileSize;
-    item.y = rand.intRangeAtMost(u32, 0, self.areaY) * self.tileSize; // myRand.uintLessThan(u32, @divTrunc(self.areaX, self.tileSize)) * self.tileSize;
-    //item.x = 60;
-    //item.y = 60;
+    item.y = rand.intRangeAtMost(u32, 0, self.areaY) * self.tileSize;
 }
 
-fn onPickup(self: *SnakeGame) void {
+fn onPickup(self: *SnakeGame) !void {
     std.log.info("Pickup detected", .{});
     self.score += 5;
+    var block = try self.allocator.create(Block);
+    block.* = Block{
+        .x = self.body.items[self.body.items.len - 1].x,
+        .y = self.body.items[self.body.items.len - 1].y,
+    };
+    try self.body.append(block);
     self.placePickup(self.pickup);
 }
 

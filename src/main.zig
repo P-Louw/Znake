@@ -2,6 +2,9 @@ const std = @import("std");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 const Snake = @import("game.zig");
+const SDLTTF = @cImport({
+    @cInclude("SDL_ttf.h");
+});
 
 var width: usize = 640;
 var height: usize = 480;
@@ -18,6 +21,9 @@ pub fn main() anyerror!void {
         .audio = true,
     });
     defer SDL.quit();
+    //if (SDLTTF.TTF_Init() < 0) {
+    //    return SDL.makeError();
+    //}
 
     var window = try SDL.createWindow(
         "Snake - zig",
