@@ -9,6 +9,7 @@
 # Cheers!
 # -andrewrk
 
+DEVNOTES.md
 zig-cache/
 zig-out/
 /release/
