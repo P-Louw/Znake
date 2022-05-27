@@ -14,9 +14,6 @@ const Block = struct {
     y: i32,
 };
 
-// TODO: Fix buffered input, move is set on key press but results in false evalution when
-//       onother input is given after since changes to a entity location isn't given on input.
-// TODO: Is this needed? This should be known or derived implicitly.
 const Moves = enum(usize) {
     up = @enumToInt(SDL.Scancode.up),
     down = @enumToInt(SDL.Scancode.down),
@@ -33,6 +30,7 @@ score: u64 = 0,
 body: std.ArrayList(*Block),
 pickup: *Block,
 direction: Moves = Moves.left,
+next: Moves = Moves.left,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
     var self = SnakeGame{
@@ -72,18 +70,20 @@ pub fn deinit(self: *SnakeGame) void {
 }
 
 /// Updates a given frame in game, delta is time elapsed sine previous update.
-pub fn update(self: *SnakeGame) !void {
+pub fn update(self: *SnakeGame, deltaP: u64) !void {
+    _ = deltaP;
     var i = self.body.items.len - 1;
     while (i > 0) : (i -= 1) {
         self.body.items[i].x = self.body.items[i - 1].x;
         self.body.items[i].y = self.body.items[i - 1].y;
     }
-    switch (self.direction) {
+    switch (self.next) {
         .up => self.body.items[0].*.y -= self.tileSize,
         .down => self.body.items[0].*.y += self.tileSize,
         .left => self.body.items[0].*.x -= self.tileSize,
         .right => self.body.items[0].*.x += self.tileSize,
     }
+    self.direction = self.next;
     if (detectCollision(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
@@ -151,18 +151,18 @@ fn detectCollision(blockA: *Block, blockB: *Block) bool {
     return true;
 }
 
-// TODO: Fix fixed 'random' series....
+// TODO: Fix deterministic 'random' series....
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
 
 fn placePickup(self: SnakeGame) void {
     std.log.info("changed position from: {any}\n", .{self.pickup});
-    self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
-    self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+    self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - 1) * self.tileSize;
+    self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - 1) * self.tileSize;
     for (self.body.items) |b| {
         if (detectCollision(self.pickup, b)) {
-            self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
-            self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+            self.pickup.x = rand.intRangeAtMost(i32, 0, ((self.areaX * self.tileSize) - self.tileSize));
+            self.pickup.y = rand.intRangeAtMost(i32, 0, ((self.areaY * self.tileSize) - self.tileSize));
             break;
         }
     }
@@ -181,21 +181,20 @@ fn onPickup(self: *SnakeGame) !void {
 }
 
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
-    //std.log.info("Entity part size: {any}", .{self.tileSize});
     switch (scanCode) {
         .up => if (self.direction != Moves.down) {
-            self.direction = Moves.up;
+            self.next = Moves.up;
         },
         .down => if (self.direction != Moves.up) {
-            self.direction = Moves.down;
+            self.next = Moves.down;
         },
         .left => if (self.direction != Moves.right) {
-            self.direction = Moves.left;
+            self.next = Moves.left;
         },
         .right => if (self.direction != Moves.left) {
-            self.direction = Moves.right;
+            self.next = Moves.right;
         },
-        .left_control => std.log.info("Move type size: {any}", .{(@TypeOf(Moves.up))}),
+        .left_control => {},
         else => {},
     }
 }

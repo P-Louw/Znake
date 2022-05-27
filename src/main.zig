@@ -10,14 +10,11 @@ var width: usize = 640;
 var height: usize = 480;
 var lastTime: u64 = undefined;
 
-// TODO: Fix pickup spawning in worm.
 // TODO: Refactor timing loop and game reference struct.
 // TODO: Add score using SDL TTF.
 // TODO: Make build file for linux and windows.
-// Considering 6 frames is the minimum for rendering updates.
-//const minFpsTime = (1000 / 6);
-// Fixed step is 60 fps for ticks
-//const fixedStep = 1000 / 60;
+// Delta for physics not rendering.
+const minDeltaTick = (1000 / 60);
 
 pub fn render(game: *Snake, renderer: *SDL.Renderer) !void {
     try renderer.setColorRGB(22, 0, 59);
@@ -38,7 +35,6 @@ pub fn main() anyerror!void {
     //if (SDLTTF.TTF_Init() < 0) {
     //    return SDL.makeError();
     //}
-
     var window = try SDL.createWindow(
         "Snake - zig",
         .{ .centered = {} },
@@ -72,13 +68,11 @@ pub fn main() anyerror!void {
             }
         }
         if (lastTime < now) {
-            const delta = (now - lastTime); // / 1000;
-            std.log.info("Delta now: {any}\n", .{delta});
             try render(&game, &renderer);
+            const delta = (now - lastTime);
             if (delta > 500) {
                 lastTime = SDL.getTicks64();
-                std.log.info("Physics update", .{});
-                try game.update();
+                try game.update(delta);
             }
         }
     }
