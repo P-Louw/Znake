@@ -10,7 +10,7 @@
 # -andrewrk
 
 DEVNOTES.md
-libs/*
+#libs/*
 zig-cache/
 zig-out/
 /release/
