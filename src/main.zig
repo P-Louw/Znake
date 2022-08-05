@@ -45,7 +45,7 @@ pub fn main() anyerror!void {
         .{ .centered = {} },
         width,
         height,
-        .{ .shown = true },
+        .{ .vis = .shown },
     );
     defer window.destroy();
     var renderer = try SDL.createRenderer(window, null, .{ .accelerated = true });
