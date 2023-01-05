@@ -75,11 +75,11 @@ pub fn main() anyerror!void {
         }
         if (lastTime < now) {
             const delta = (now - lastTime); // / 1000;
-            std.log.info("Delta now: {any}\n", .{delta});
+            //std.log.info("Delta now: {any}\n", .{delta});
             try render(&game, &renderer);
             if (delta > 250) {
                 lastTime = SDL.getTicks64();
-                std.log.info("Physics update", .{});
+                //std.log.info("Physics update", .{});
                 try game.update();
             }
         }
