@@ -46,21 +46,23 @@ pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
         .pickup = try ally.create(Block),
         .score = 0,
     };
-    self.areaX = @divTrunc(@intCast(i32, screen.width), self.tileSize);
-    self.areaY = @divTrunc(@intCast(i32, screen.height), self.tileSize);
+
+    self.areaX = screen.width;
+    self.areaY = screen.height;
 
     self.placePickup();
     var i: usize = 0;
-    var stepX: i32 = @divTrunc(self.areaX, 2) * self.tileSize;
-    var y: i32 = @divTrunc(self.areaY, 2) * self.tileSize;
+    var pos_x: i32 = @divTrunc(self.areaX, 2);
+    var pos_y: i32 = @divTrunc(self.areaY, 2);
+
     while (i < self.bodyLength) : ({
         i += 1;
-        stepX += self.tileSize;
+        pos_x += self.tileSize;
     }) {
         var block = try self.allocator.create(Block);
         block.* = Block{
-            .x = stepX,
-            .y = y,
+            .x = pos_x,
+            .y = pos_y,
         };
         try self.body.append(block);
     }
@@ -72,7 +74,6 @@ pub fn deinit(self: *SnakeGame) void {
     self.allocator.destroy(self.pickup);
 }
 
-/// Updates a given frame in game, delta is time elapsed sine previous update.
 pub fn update(self: *SnakeGame) !void {
     var i = self.body.items.len - 1;
     while (i > 0) : (i -= 1) {
@@ -85,20 +86,19 @@ pub fn update(self: *SnakeGame) !void {
         .left => self.body.items[0].*.x -= self.tileSize,
         .right => self.body.items[0].*.x += self.tileSize,
     }
-    if (detectCollision(self.body.items[0], self.pickup)) {
+    if (isColliding(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
     if (try self.detectGameover(self.body.items[0])) {
         self.dead = true;
     }
     for (self.body.items[2..]) |bod| {
-        if (detectCollision(self.body.items[0], bod)) {
+        if (isColliding(self.body.items[0], bod)) {
             self.dead = true;
         }
     }
 }
 
-// Draw game.
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
     try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
     for (self.body.items) |bod| {
@@ -119,15 +119,15 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
 }
 
 fn detectGameover(self: *SnakeGame, head: *Block) !bool {
-    if (head.x < 0 or head.x > (self.tileSize * self.areaX)) {
+    if (head.x < 0 or head.x > (self.areaX - self.tileSize)) {
         return true;
-    } else if (head.y < 0 or head.y > (self.tileSize * self.areaY)) {
+    } else if (head.y < 0 or head.y > (self.areaY - self.tileSize)) {
         return true;
     }
     return false;
 }
 
-fn detectCollision(blockA: *Block, blockB: *Block) bool {
+fn isColliding(blockA: *Block, blockB: *Block) bool {
     // TODO: Magic numbers should be tileSize field.
     //Calculate the sides of rect A
     const rightA = blockA.x + 10;
@@ -156,18 +156,22 @@ fn detectCollision(blockA: *Block, blockB: *Block) bool {
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
 
+/// Generates rng x and y point then assign it to pickup x y.
+fn assignRngPickup(self: SnakeGame) void {
+    self.pickup.x = rand.intRangeAtMost(i32, 0, @divTrunc(self.areaX - self.tileSize, 20)) * 20;
+    self.pickup.y = rand.intRangeAtMost(i32, 0, @divTrunc(self.areaY - self.tileSize, 20)) * 20;
+}
+
 fn placePickup(self: SnakeGame) void {
     std.log.info("changed position from: {any}\n", .{self.pickup});
-    self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
-    self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
-
+    assignRngPickup(self);
     for (self.body.items) |b| {
-        if (detectCollision(self.pickup, b)) {
-            self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
-            self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+        if (isColliding(self.pickup, b)) {
+            assignRngPickup(self);
             break;
         }
     }
+    std.log.info("To: {any}\n", .{self.pickup});
 }
 
 fn onPickup(self: *SnakeGame) !void {
@@ -183,7 +187,6 @@ fn onPickup(self: *SnakeGame) !void {
 }
 
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
-    //std.log.info("Entity part size: {any}", .{self.tileSize});
     switch (scanCode) {
         .up => if (self.direction != Moves.down) {
             self.direction = Moves.up;
