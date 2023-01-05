@@ -28,7 +28,9 @@ pub fn render(game: *Snake, renderer: *SDL.Renderer) !void {
 
 pub fn main() anyerror!void {
     lastTime = SDL.getTicks64();
-    const allocator = std.heap.page_allocator;
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    // const allocator = std.heap.page_allocator;
     try SDL.init(.{
         .video = true,
         .events = true,
@@ -55,7 +57,7 @@ pub fn main() anyerror!void {
     defer game.deinit();
     try game.render(&renderer);
 
-    mainLoop: while (true) {
+    mainLoop: while (!game.dead) {
         var now: u64 = SDL.getTicks64();
         while (SDL.pollEvent()) |ev| {
             switch (ev) {
@@ -75,7 +77,7 @@ pub fn main() anyerror!void {
             const delta = (now - lastTime); // / 1000;
             std.log.info("Delta now: {any}\n", .{delta});
             try render(&game, &renderer);
-            if (delta > 500) {
+            if (delta > 250) {
                 lastTime = SDL.getTicks64();
                 std.log.info("Physics update", .{});
                 try game.update();
