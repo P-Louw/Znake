@@ -33,6 +33,7 @@ score: u64 = 0,
 body: std.ArrayList(*Block),
 pickup: *Block,
 direction: Moves = Moves.left,
+next_direction: Moves = Moves.left,
 dead: bool = false,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
@@ -80,12 +81,13 @@ pub fn update(self: *SnakeGame) !void {
         self.body.items[i].x = self.body.items[i - 1].x;
         self.body.items[i].y = self.body.items[i - 1].y;
     }
-    switch (self.direction) {
+    switch (self.next_direction) {
         .up => self.body.items[0].*.y -= self.tileSize,
         .down => self.body.items[0].*.y += self.tileSize,
         .left => self.body.items[0].*.x -= self.tileSize,
         .right => self.body.items[0].*.x += self.tileSize,
     }
+    self.direction = self.next_direction;
     if (isColliding(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
@@ -152,7 +154,6 @@ fn isColliding(blockA: *Block, blockB: *Block) bool {
     return true;
 }
 
-// TODO: Fix fixed 'random' series....
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
 
@@ -163,7 +164,6 @@ fn assignRngPickup(self: SnakeGame) void {
 }
 
 fn placePickup(self: SnakeGame) void {
-    std.log.info("changed position from: {any}\n", .{self.pickup});
     assignRngPickup(self);
     for (self.body.items) |b| {
         if (isColliding(self.pickup, b)) {
@@ -171,11 +171,9 @@ fn placePickup(self: SnakeGame) void {
             break;
         }
     }
-    std.log.info("To: {any}\n", .{self.pickup});
 }
 
 fn onPickup(self: *SnakeGame) !void {
-    std.log.info("Pickup detected", .{});
     self.score += 5;
     var block = try self.allocator.create(Block);
     block.* = Block{
@@ -189,16 +187,16 @@ fn onPickup(self: *SnakeGame) !void {
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
     switch (scanCode) {
         .up => if (self.direction != Moves.down) {
-            self.direction = Moves.up;
+            self.next_direction = Moves.up;
         },
         .down => if (self.direction != Moves.up) {
-            self.direction = Moves.down;
+            self.next_direction = Moves.down;
         },
         .left => if (self.direction != Moves.right) {
-            self.direction = Moves.left;
+            self.next_direction = Moves.left;
         },
         .right => if (self.direction != Moves.left) {
-            self.direction = Moves.right;
+            self.next_direction = Moves.right;
         },
         .left_control => std.log.info("Move type size: {any}", .{(@TypeOf(Moves.up))}),
         else => {},
