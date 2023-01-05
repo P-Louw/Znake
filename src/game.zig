@@ -25,39 +25,41 @@ const Moves = enum(usize) {
 };
 
 allocator: std.mem.Allocator,
-areaX: i32,
-areaY: i32,
-bodyLength: usize = 3,
-tileSize: i32 = 10,
+area_x: i32,
+area_y: i32,
+tile_size: i32 = 10,
 score: u64 = 0,
+
+body_color: SDL.Color = SDL.Color.parse("#F7A41D") catch unreachable,
+body_length: usize = 3,
 body: std.ArrayList(*Block),
-pickup: *Block,
 direction: Moves = Moves.left,
+next_direction: Moves = Moves.left,
 dead: bool = false,
+
+pickup_color: SDL.Color = SDL.Color.parse("#1C9E49") catch unreachable,
+pickup: *Block,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
     var self = SnakeGame{
-        .tileSize = 20,
-        .areaX = undefined,
-        .areaY = undefined,
+        .tile_size = 20,
+        .area_x = screen.width,
+        .area_y = screen.height,
         .allocator = ally,
-        .bodyLength = 3,
+        .body_length = 3,
         .body = std.ArrayList(*Block).init(ally),
         .pickup = try ally.create(Block),
         .score = 0,
     };
 
-    self.areaX = screen.width;
-    self.areaY = screen.height;
-
     self.placePickup();
     var i: usize = 0;
-    var pos_x: i32 = @divTrunc(self.areaX, 2);
-    var pos_y: i32 = @divTrunc(self.areaY, 2);
+    var pos_x: i32 = @divTrunc(self.area_x, 2);
+    var pos_y: i32 = @divTrunc(self.area_y, 2);
 
-    while (i < self.bodyLength) : ({
+    while (i < self.body_length) : ({
         i += 1;
-        pos_x += self.tileSize;
+        pos_x += self.tile_size;
     }) {
         var block = try self.allocator.create(Block);
         block.* = Block{
@@ -80,12 +82,13 @@ pub fn update(self: *SnakeGame) !void {
         self.body.items[i].x = self.body.items[i - 1].x;
         self.body.items[i].y = self.body.items[i - 1].y;
     }
-    switch (self.direction) {
-        .up => self.body.items[0].*.y -= self.tileSize,
-        .down => self.body.items[0].*.y += self.tileSize,
-        .left => self.body.items[0].*.x -= self.tileSize,
-        .right => self.body.items[0].*.x += self.tileSize,
+    switch (self.next_direction) {
+        .up => self.body.items[0].*.y -= self.tile_size,
+        .down => self.body.items[0].*.y += self.tile_size,
+        .left => self.body.items[0].*.x -= self.tile_size,
+        .right => self.body.items[0].*.x += self.tile_size,
     }
+    self.direction = self.next_direction;
     if (isColliding(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
@@ -100,41 +103,41 @@ pub fn update(self: *SnakeGame) !void {
 }
 
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
-    try renderer.setColor(SDL.Color.parse("#F7A41D") catch unreachable);
+    try renderer.setColor(self.body_color);
     for (self.body.items) |bod| {
         try renderer.fillRect(SDL.Rectangle{
             .x = @intCast(c_int, bod.x),
             .y = @intCast(c_int, bod.y),
-            .width = @intCast(c_int, self.tileSize),
-            .height = @intCast(c_int, self.tileSize),
+            .width = @intCast(c_int, self.tile_size),
+            .height = @intCast(c_int, self.tile_size),
         });
     }
-    try renderer.setColor(SDL.Color.parse("#1C9E49") catch unreachable);
+    try renderer.setColor(self.pickup_color);
     try renderer.fillRect(SDL.Rectangle{
         .x = @intCast(c_int, self.pickup.x),
         .y = @intCast(c_int, self.pickup.y),
-        .width = @intCast(c_int, self.tileSize),
-        .height = @intCast(c_int, self.tileSize),
+        .width = @intCast(c_int, self.tile_size),
+        .height = @intCast(c_int, self.tile_size),
     });
 }
 
 fn detectGameover(self: *SnakeGame, head: *Block) !bool {
-    if (head.x < 0 or head.x > (self.areaX - self.tileSize)) {
+    if (head.x < 0 or head.x > (self.area_x - self.tile_size)) {
         return true;
-    } else if (head.y < 0 or head.y > (self.areaY - self.tileSize)) {
+    } else if (head.y < 0 or head.y > (self.area_y - self.tile_size)) {
         return true;
     }
     return false;
 }
 
+/// Check if two blocks are colliding.
 fn isColliding(blockA: *Block, blockB: *Block) bool {
-    // TODO: Magic numbers should be tileSize field.
-    //Calculate the sides of rect A
+    // TODO: Magic numbers should be tile_size field.
     const rightA = blockA.x + 10;
     const bottomA = blockA.y + 10;
-    //Calculate the sides of rect B
     const rightB = blockB.x + 10;
     const bottomB = blockB.y + 10;
+
     //If any of the sides from A are outside of B
     if (bottomA <= blockB.y) {
         return false;
@@ -148,22 +151,20 @@ fn isColliding(blockA: *Block, blockB: *Block) bool {
     if (blockA.x >= rightB) {
         return false;
     }
-    //If none of the sides from A are outside B
+    //If none of the sides from A are outside B it's a collision.
     return true;
 }
 
-// TODO: Fix fixed 'random' series....
 var prng = std.rand.DefaultPrng.init(640);
 const rand = &prng.random();
 
 /// Generates rng x and y point then assign it to pickup x y.
 fn assignRngPickup(self: SnakeGame) void {
-    self.pickup.x = rand.intRangeAtMost(i32, 0, @divTrunc(self.areaX - self.tileSize, 20)) * 20;
-    self.pickup.y = rand.intRangeAtMost(i32, 0, @divTrunc(self.areaY - self.tileSize, 20)) * 20;
+    self.pickup.x = rand.intRangeAtMost(i32, 0, @divTrunc(self.area_x - self.tile_size, 20)) * 20;
+    self.pickup.y = rand.intRangeAtMost(i32, 0, @divTrunc(self.area_y - self.tile_size, 20)) * 20;
 }
 
 fn placePickup(self: SnakeGame) void {
-    std.log.info("changed position from: {any}\n", .{self.pickup});
     assignRngPickup(self);
     for (self.body.items) |b| {
         if (isColliding(self.pickup, b)) {
@@ -171,11 +172,9 @@ fn placePickup(self: SnakeGame) void {
             break;
         }
     }
-    std.log.info("To: {any}\n", .{self.pickup});
 }
 
 fn onPickup(self: *SnakeGame) !void {
-    std.log.info("Pickup detected", .{});
     self.score += 5;
     var block = try self.allocator.create(Block);
     block.* = Block{
@@ -189,18 +188,17 @@ fn onPickup(self: *SnakeGame) !void {
 pub fn handleKeyBoard(self: *SnakeGame, scanCode: SDL.Scancode) void {
     switch (scanCode) {
         .up => if (self.direction != Moves.down) {
-            self.direction = Moves.up;
+            self.next_direction = Moves.up;
         },
         .down => if (self.direction != Moves.up) {
-            self.direction = Moves.down;
+            self.next_direction = Moves.down;
         },
         .left => if (self.direction != Moves.right) {
-            self.direction = Moves.left;
+            self.next_direction = Moves.left;
         },
         .right => if (self.direction != Moves.left) {
-            self.direction = Moves.right;
+            self.next_direction = Moves.right;
         },
-        .left_control => std.log.info("Move type size: {any}", .{(@TypeOf(Moves.up))}),
         else => {},
     }
 }
