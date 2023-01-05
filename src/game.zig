@@ -33,6 +33,7 @@ score: u64 = 0,
 body: std.ArrayList(*Block),
 pickup: *Block,
 direction: Moves = Moves.left,
+dead: bool = false,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
     var self = SnakeGame{
@@ -88,11 +89,11 @@ pub fn update(self: *SnakeGame) !void {
         try self.onPickup();
     }
     if (try self.detectGameover(self.body.items[0])) {
-        SDL.quit();
+        self.dead = true;
     }
     for (self.body.items[2..]) |bod| {
         if (detectCollision(self.body.items[0], bod)) {
-            SDL.quit();
+            self.dead = true;
         }
     }
 }
@@ -159,6 +160,7 @@ fn placePickup(self: SnakeGame) void {
     std.log.info("changed position from: {any}\n", .{self.pickup});
     self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
     self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+
     for (self.body.items) |b| {
         if (detectCollision(self.pickup, b)) {
             self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
