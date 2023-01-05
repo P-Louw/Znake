@@ -160,6 +160,7 @@ fn placePickup(self: SnakeGame) void {
     std.log.info("changed position from: {any}\n", .{self.pickup});
     self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
     self.pickup.y = rand.intRangeAtMost(i32, 0, self.areaY - self.tileSize) * self.tileSize;
+
     for (self.body.items) |b| {
         if (detectCollision(self.pickup, b)) {
             self.pickup.x = rand.intRangeAtMost(i32, 0, self.areaX - self.tileSize) * self.tileSize;
