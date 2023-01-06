@@ -1,12 +1,9 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const linkedlist = @import("linked_list");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
-const SDLTTF = @cImport({
-    @cInclude("SDL_ttf.h");
-});
 
+// TODO: Atm score bar affects the logic of collision detection. Extracting surfaces/areas.
 const SnakeGame = @This();
 
 const Block = struct {
@@ -14,8 +11,6 @@ const Block = struct {
     y: i32,
 };
 
-// TODO: Fix buffered input, move is set on key press but results in false evalution when
-//       onother input is given after since changes to a entity location isn't given on input.
 // TODO: Is this needed? This should be known or derived implicitly.
 const Moves = enum(usize) {
     up = @enumToInt(SDL.Scancode.up),
@@ -24,11 +19,15 @@ const Moves = enum(usize) {
     right = @enumToInt(SDL.Scancode.right),
 };
 
+const resource_font = @embedFile("embeds/Ticketing.ttf");
+
 allocator: std.mem.Allocator,
 area_x: i32,
 area_y: i32,
 tile_size: i32 = 10,
 score: u64 = 0,
+
+font_menu: SDL.ttf.Font = undefined,
 
 body_color: SDL.Color = SDL.Color.parse("#F7A41D") catch unreachable,
 body_length: usize = 3,
@@ -41,8 +40,10 @@ pickup_color: SDL.Color = SDL.Color.parse("#1C9E49") catch unreachable,
 pickup: *Block,
 
 pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
+    const t_size = 20;
     var self = SnakeGame{
-        .tile_size = 20,
+        .font_menu = SDL.ttf.openFontMem(resource_font, true, 16) catch unreachable,
+        .tile_size = t_size,
         .area_x = screen.width,
         .area_y = screen.height,
         .allocator = ally,
@@ -68,6 +69,7 @@ pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
         };
         try self.body.append(block);
     }
+
     return self;
 }
 
@@ -89,17 +91,42 @@ pub fn update(self: *SnakeGame) !void {
         .right => self.body.items[0].*.x += self.tile_size,
     }
     self.direction = self.next_direction;
-    if (isColliding(self.body.items[0], self.pickup)) {
+    if (self.isColliding(self.body.items[0], self.pickup)) {
         try self.onPickup();
     }
     if (try self.detectGameover(self.body.items[0])) {
         self.dead = true;
     }
     for (self.body.items[2..]) |bod| {
-        if (isColliding(self.body.items[0], bod)) {
+        if (self.isColliding(self.body.items[0], bod)) {
             self.dead = true;
         }
     }
+}
+
+fn renderBar(self: *SnakeGame, renderer: *SDL.Renderer, width: i32, height: i32) !void {
+    try renderer.setColor(SDL.Color.parse("#222222") catch unreachable);
+    // Use same rect to draw a bar at first and later text.
+    var rect = SDL.Rectangle{
+        .x = 0,
+        .y = 0,
+        .width = width,
+        .height = height,
+    };
+    try renderer.fillRect(rect);
+
+    var buff_score: [5]u8 = undefined;
+    var score_str: [:0]u8 = try std.fmt.bufPrintZ(&buff_score, "{d}", .{self.score});
+    var txt_surface = try self.font_menu.renderTextSolid(score_str, SDL.Color.parse("#EAE0DA") catch unreachable);
+    defer txt_surface.destroy();
+    var txt_texture = try SDL.createTextureFromSurface(renderer.*, txt_surface);
+    var txt_texture_info = try txt_texture.query();
+    rect.width = @intCast(c_int, txt_texture_info.width);
+    rect.height = @intCast(c_int, txt_texture_info.height);
+    rect.x = @divTrunc(self.area_x, 2);
+    rect.y = 2;
+    defer txt_texture.destroy();
+    try renderer.copy(txt_texture, rect, null);
 }
 
 pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
@@ -119,39 +146,37 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
         .width = @intCast(c_int, self.tile_size),
         .height = @intCast(c_int, self.tile_size),
     });
+    try self.renderBar(renderer, self.area_x, self.tile_size);
 }
 
+/// Detecting game over for y axis has to account for black/score bar of size tile_size.
 fn detectGameover(self: *SnakeGame, head: *Block) !bool {
     if (head.x < 0 or head.x > (self.area_x - self.tile_size)) {
         return true;
-    } else if (head.y < 0 or head.y > (self.area_y - self.tile_size)) {
+    } else if (head.y < self.tile_size or head.y > (self.area_y - self.tile_size)) {
         return true;
     }
     return false;
 }
 
 /// Check if two blocks are colliding.
-fn isColliding(blockA: *Block, blockB: *Block) bool {
-    // TODO: Magic numbers should be tile_size field.
-    const rightA = blockA.x + 10;
-    const bottomA = blockA.y + 10;
-    const rightB = blockB.x + 10;
-    const bottomB = blockB.y + 10;
+fn isColliding(self: SnakeGame, blockA: *Block, blockB: *Block) bool {
+    const half_tile = @divTrunc(self.tile_size, 2);
+    const a_center_x = blockA.x + half_tile;
+    const a_center_y = blockA.y + half_tile;
 
-    //If any of the sides from A are outside of B
-    if (bottomA <= blockB.y) {
+    if (a_center_x < blockB.x) {
         return false;
     }
-    if (blockA.y >= bottomB) {
+    if (a_center_x > (blockB.x + self.tile_size)) {
         return false;
     }
-    if (rightA <= blockB.x) {
+    if (a_center_y < blockB.y) {
         return false;
     }
-    if (blockA.x >= rightB) {
+    if (a_center_y > (blockB.y + self.tile_size)) {
         return false;
     }
-    //If none of the sides from A are outside B it's a collision.
     return true;
 }
 
@@ -162,12 +187,16 @@ const rand = &prng.random();
 fn assignRngPickup(self: SnakeGame) void {
     self.pickup.x = rand.intRangeAtMost(i32, 0, @divTrunc(self.area_x - self.tile_size, 20)) * 20;
     self.pickup.y = rand.intRangeAtMost(i32, 0, @divTrunc(self.area_y - self.tile_size, 20)) * 20;
+    // TODO: This accounts for added score bar but shouldn't be needed, see top of file todo note.
+    if (self.pickup.y < self.tile_size) {
+        self.pickup.y += 20;
+    }
 }
 
 fn placePickup(self: SnakeGame) void {
     assignRngPickup(self);
     for (self.body.items) |b| {
-        if (isColliding(self.pickup, b)) {
+        if (self.isColliding(self.pickup, b)) {
             assignRngPickup(self);
             break;
         }

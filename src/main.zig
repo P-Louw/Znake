@@ -2,16 +2,12 @@ const std = @import("std");
 const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 const Snake = @import("game.zig");
-const SDLTTF = @cImport({
-    @cInclude("SDL_ttf.h");
-});
 
 var width: usize = 640;
 var height: usize = 480;
 var lastTime: u64 = undefined;
 
-// TODO: Refactor timing loop and game reference struct.
-// TODO: Add score using SDL TTF.
+// TODO: Add fixed timestep:
 // Considering 6 frames is the minimum for rendering updates.
 //const minFpsTime = (1000 / 6);
 // Fixed step is 60 fps for ticks
@@ -33,10 +29,8 @@ pub fn main() anyerror!void {
         .events = true,
         .audio = true,
     });
+    try SDL.ttf.init();
     defer SDL.quit();
-    //if (SDLTTF.TTF_Init() < 0) {
-    //    return SDL.makeError();
-    //}
 
     var window = try SDL.createWindow(
         "Snake - zig",
@@ -71,7 +65,7 @@ pub fn main() anyerror!void {
             }
         }
         if (lastTime < now) {
-            const delta = (now - lastTime); // / 1000;
+            const delta = (now - lastTime);
             try render(&game, &renderer);
             if (delta > 250) {
                 lastTime = SDL.getTicks64();
