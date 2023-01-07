@@ -67,7 +67,7 @@ pub fn main() anyerror!void {
         if (lastTime < now) {
             const delta = (now - lastTime);
             try render(&game, &renderer);
-            if (delta > 250) {
+            if (delta > 200) {
                 lastTime = SDL.getTicks64();
                 try game.update();
             }

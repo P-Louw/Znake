@@ -27,8 +27,6 @@ pub fn build(b: *std.build.Builder) void {
 
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("SDL2_ttf");
-    //exe.linkSystemLibrary("c");
-    exe.linkSystemLibrary("SDL2_image");
 
     exe.install();
 
