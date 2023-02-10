@@ -8,22 +8,22 @@ pub fn build(b: *std.build.Builder) void {
     // for restricting supported target set are available.
     const target = b.standardTargetOptions(.{});
 
+    const optimize = b.standardOptimizeOption(.{});
+
     // Zig sdl wrapper setup.
-    const sdk = Sdk.init(b);
+    const sdk = Sdk.init(b, null);
 
-    // Standard release options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall.
-    const mode = b.standardReleaseOptions();
-
-    const exe = b.addExecutable("Snake", "src/main.zig");
-    exe.setTarget(target);
+    const exe = b.addExecutable(.{
+        .name = "Snake",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
     sdk.link(exe, .dynamic);
 
-    exe.addPackage(sdk.getNativePackage("sdl2-native"));
-    exe.addPackage(sdk.getWrapperPackage("sdl2-zig"));
-
-    exe.setBuildMode(mode);
+    exe.addModule("sdl2-native", sdk.getNativeModule());
+    exe.addModule("sdl2-zig", sdk.getWrapperModule());
 
     exe.linkSystemLibrary("SDL2");
     exe.linkSystemLibrary("SDL2_ttf");
@@ -38,11 +38,4 @@ pub fn build(b: *std.build.Builder) void {
 
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
-
-    const exe_tests = b.addTest("src/main.zig");
-    exe_tests.setTarget(target);
-    exe_tests.setBuildMode(mode);
-
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&exe_tests.step);
 }
