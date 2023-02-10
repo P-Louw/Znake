@@ -1,0 +1,51 @@
+name: GitHub Actions Demo
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+on: 
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 Checkout on branch ${{ github.ref }}."
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install libsdl2-dev libsdl2-image-dev
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: master
+
+      - name: SDL version
+        run: sdl2-config --version
+      - run: echo "🖌️ SDL config."
+
+      - name: Build Example
+        run: zig build install
+      - run: echo "🐍 Game built."
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            Linux release zig-snake
+          draft: false
+          prerelease: false
+
+      - run: echo "🍏 This job's status is ${{ job.status }}."
