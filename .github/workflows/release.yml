@@ -1,5 +1,5 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+name: GitHub Actions release zig
+run-name: Release run 🚀
 on: 
   push:
     branches: [master]
@@ -23,7 +23,7 @@ jobs:
           sudo apt-get install libsdl2-dev libsdl2-image-dev
 
       - name: Setup Zig
-        uses: goto-bus-stop/setup-zig@v2
+        uses: goto-bus-stop/setup-zig@v1
         with:
           version: master
 
