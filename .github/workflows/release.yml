@@ -41,6 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ github.run_number }}
           release_name: Snake ${{ github.run_number }}
           body: |
             Linux release zig-snake
