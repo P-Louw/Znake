@@ -42,7 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }} 
-          file:: ./zig-out/bin/Snake
+          file: ./zig-out/bin/Snake
           tag: ${{ github.ref }}
           overwrite: true
           
