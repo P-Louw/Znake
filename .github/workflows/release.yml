@@ -41,7 +41,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          asset_path: ./zig-out/bin/
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: ./zig-out/bin/Snake
           asset_name: Snake
           asset_content_type: application/bin
 
