@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install libsdl2-dev libsdl2-image-dev
+          sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev
 
       - name: Setup Zig
         uses: goto-bus-stop/setup-zig@v1
@@ -42,10 +42,21 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
+          release_name: Snake ${{ github.run_number }}
           body: |
             Linux release zig-snake
           draft: false
           prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset 
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} 
+          asset_path: ./zig-out/bin/
+          asset_name: Snake
+          asset_content_type: application/bin
 
       - run: echo "🍏 This job's status is ${{ job.status }}."
