@@ -43,7 +43,8 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }} 
           file: ./zig-out/bin/Snake
-          tag: ${{ github.ref }}
+          asset_name: Znake-${{ vars.RUNNER_OS }}
+          tag: Znake-${{ vars.GITHUB_SHA }}
           overwrite: true
           
       - run: echo "🍏 This job's status is ${{ job.status }}."
