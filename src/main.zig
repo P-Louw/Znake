@@ -1,5 +1,5 @@
 const std = @import("std");
-const SDLC = @import("sdl2-native");
+//const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 const Snake = @import("game.zig");
 
@@ -49,7 +49,7 @@ pub fn main() anyerror!void {
     try game.render(&renderer);
 
     mainLoop: while (!game.dead) {
-        var now: u64 = SDL.getTicks64();
+        const now: u64 = SDL.getTicks64();
         while (SDL.pollEvent()) |ev| {
             switch (ev) {
                 .quit => {

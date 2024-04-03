@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const SDLC = @import("sdl2-native");
 const SDL = @import("sdl2-zig");
 
 // TODO: Atm score bar affects the logic of collision detection. Extracting surfaces/areas.
@@ -13,10 +12,10 @@ const Block = struct {
 
 // TODO: Is this needed? This should be known or derived implicitly.
 const Moves = enum(usize) {
-    up = @enumToInt(SDL.Scancode.up),
-    down = @enumToInt(SDL.Scancode.down),
-    left = @enumToInt(SDL.Scancode.left),
-    right = @enumToInt(SDL.Scancode.right),
+    up = @intFromEnum(SDL.Scancode.up),
+    down = @intFromEnum(SDL.Scancode.down),
+    left = @intFromEnum(SDL.Scancode.left),
+    right = @intFromEnum(SDL.Scancode.right),
 };
 
 const resource_font = @embedFile("embeds/Ticketing.ttf");
@@ -56,13 +55,13 @@ pub fn init(ally: std.mem.Allocator, screen: SDL.Size) !SnakeGame {
     self.placePickup();
     var i: usize = 0;
     var pos_x: i32 = @divTrunc(self.area_x, 2);
-    var pos_y: i32 = @divTrunc(self.area_y, 2);
+    const pos_y: i32 = @divTrunc(self.area_y, 2);
 
     while (i < self.body_length) : ({
         i += 1;
         pos_x += self.tile_size;
     }) {
-        var block = try self.allocator.create(Block);
+        const block = try self.allocator.create(Block);
         block.* = Block{
             .x = pos_x,
             .y = pos_y,
@@ -116,13 +115,13 @@ fn renderBar(self: *SnakeGame, renderer: *SDL.Renderer, width: i32, height: i32)
     try renderer.fillRect(rect);
 
     var buff_score: [5]u8 = undefined;
-    var score_str: [:0]u8 = try std.fmt.bufPrintZ(&buff_score, "{d}", .{self.score});
+    const score_str: [:0]u8 = try std.fmt.bufPrintZ(&buff_score, "{d}", .{self.score});
     var txt_surface = try self.font_menu.renderTextSolid(score_str, SDL.Color.parse("#EAE0DA") catch unreachable);
     defer txt_surface.destroy();
     var txt_texture = try SDL.createTextureFromSurface(renderer.*, txt_surface);
-    var txt_texture_info = try txt_texture.query();
-    rect.width = @intCast(c_int, txt_texture_info.width);
-    rect.height = @intCast(c_int, txt_texture_info.height);
+    const txt_texture_info = try txt_texture.query();
+    rect.width = @intCast(txt_texture_info.width);
+    rect.height = @intCast(txt_texture_info.height);
     rect.x = @divTrunc(self.area_x, 2);
     rect.y = 2;
     defer txt_texture.destroy();
@@ -133,18 +132,18 @@ pub fn render(self: *SnakeGame, renderer: *SDL.Renderer) !void {
     try renderer.setColor(self.body_color);
     for (self.body.items) |bod| {
         try renderer.fillRect(SDL.Rectangle{
-            .x = @intCast(c_int, bod.x),
-            .y = @intCast(c_int, bod.y),
-            .width = @intCast(c_int, self.tile_size),
-            .height = @intCast(c_int, self.tile_size),
+            .x = @intCast(bod.x),
+            .y = @intCast(bod.y),
+            .width = @intCast(self.tile_size),
+            .height = @intCast(self.tile_size),
         });
     }
     try renderer.setColor(self.pickup_color);
     try renderer.fillRect(SDL.Rectangle{
-        .x = @intCast(c_int, self.pickup.x),
-        .y = @intCast(c_int, self.pickup.y),
-        .width = @intCast(c_int, self.tile_size),
-        .height = @intCast(c_int, self.tile_size),
+        .x = @intCast(self.pickup.x),
+        .y = @intCast(self.pickup.y),
+        .width = @intCast(self.tile_size),
+        .height = @intCast(self.tile_size),
     });
     try self.renderBar(renderer, self.area_x, self.tile_size);
 }
@@ -205,7 +204,7 @@ fn placePickup(self: SnakeGame) void {
 
 fn onPickup(self: *SnakeGame) !void {
     self.score += 5;
-    var block = try self.allocator.create(Block);
+    const block = try self.allocator.create(Block);
     block.* = Block{
         .x = self.body.items[self.body.items.len - 1].x,
         .y = self.body.items[self.body.items.len - 1].y,
