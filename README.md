@@ -4,7 +4,6 @@
 </p>
 
 Simple snake version written in zig using [SDL-zig](https://github.com/MasterQ32/SDL.zig) for bindings and a few wrapper functions.
-Build with dev version of zig zig-0.12.0-dev.3522+b88ae8dbd.
 
 ## Installing
 
